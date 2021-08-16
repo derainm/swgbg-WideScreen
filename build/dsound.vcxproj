@@ -110,14 +110,12 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\src\MemoryMgr.h" />
-    <ClInclude Include="drs.h" />
     <ClInclude Include="registry.h" />
     <ClInclude Include="wideScreen.h" />
     <ClInclude Include="windowed.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\dsound.cpp" />
-    <ClCompile Include="drs.cpp" />
     <ClCompile Include="wideScreen.cpp" />
     <ClCompile Include="windowed.cpp" />
   </ItemGroup>

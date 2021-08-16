@@ -2,6 +2,8 @@
 
 #include <atomic>
 #include <stdio.h>
+#include <string>
+//#include "slp.h"
 
 
 
@@ -556,7 +558,7 @@ void __declspec(naked) addWidescreenControl2()
 
 //DWORD Aoc10C_00632C48 = 0x0632C48;
 //00651C48   . 8B45 1C        MOV EAX,DWORD PTR SS:[EBP+1C]
-DWORD battlegr_00632C48 = 0x0632C48;
+DWORD battlegr_00632C48 = 0x0651C48;
 void __declspec(naked) f_Aoc10C_007C1EF0()
 {
     __asm
@@ -611,7 +613,7 @@ DWORD Aoc10C_006137C9 = 0x06137C9;
 //00632CCA  /$ 55             PUSH EBP
 DWORD battlegr_00632CCA = 0x0632CCA;
 //00632D33  /$ 55             PUSH EBP
-DWORD battlegr_00632D33;
+DWORD battlegr_00632D33= 0x0632D33;
 
 void __declspec(naked) f_Aoc10C_007C1C38()
 {
@@ -672,7 +674,7 @@ void __declspec(naked) f_Aoc10C_007C1C38()
         ADD ESI, 14h
         PUSH ESI
         PUSH 1h
-        CALL battlegr_00632CCA//Aoc10C_006137C9
+        CALL battlegr_00632D33//Aoc10C_006137C9
         ADD ESP, 8h
         MOV DWORD PTR DS : [Aoc10C_7A5500] , EAX
         TEST EAX, EAX
@@ -783,7 +785,7 @@ void __declspec(naked) f_Aoc10C_007C1C38()
         MOV DWORD PTR SS : [ESP + 2Ch] , EDX
         MOV DWORD PTR SS : [ESP + 28h] , ESI
         MOV DWORD PTR SS : [ESP + 4h] , EBP
-        CALL Aoc10C_007C1F20
+        CALL Aoc10C_007C1F20//ici
         ADD EDI, 30h
         ADD ESI, 30h
         ADD EBP, 30h
@@ -885,6 +887,615 @@ void __declspec(naked) ResizeslpInterface()
     }
 }
 
+//additional structures
+struct pixel
+{
+    unsigned char type;
+    unsigned char data;
+    bool operator==(const pixel& p)
+    {
+        return ((p.type == type) && (p.data == data));
+    }
+};
+
+enum types
+{
+    T_PIXEL,
+    T_PLAYER_COLOR,
+    T_TRANSPARENT,
+    T_SHADOW,
+    T_OUTLINE_SHIELD,
+    T_OUTLINE_COLOR
+};
+
+//SLP structures
+
+struct file_header
+{
+    char  version[4];
+    long  num_frames;
+    char  comment[24];
+};
+
+struct frame_info
+{
+    unsigned long    cmd_table_offset;
+    unsigned long    outline_table_offset;
+    unsigned long    palette_offset;
+    unsigned long    properties;
+    long    width;
+    long    height;
+    long    hotspot_x;
+    long    hotspot_y;
+    //
+    pixel** data;
+};
+
+struct rowedge
+{
+    short left, right;
+};
+
+//parser state machine states
+enum states
+{
+    COPY,
+    FILL,
+    SET
+};
+std::string file;
+
+file_header hdr;
+frame_info* frame_i;
+rowedge** edge;
+long** rowoffset;
+
+bool loaded;
+
+long pixels_total;
+////////////------------------------
+int print_TEST(unsigned char** ptr, int type, int len, pixel* row, int start)
+{
+    UNREFERENCED_PARAMETER(row);
+    UNREFERENCED_PARAMETER(type);
+    unsigned char* p = *ptr;
+    unsigned char cmd = 0;
+    cmd = 0x0E;
+    *p++ = cmd;
+    *ptr = p;
+    return start + len;
+}
+////////////------------------------
+
+int print_FILL(unsigned char** ptr, int type, int len, pixel* row, int start)
+{
+    //////
+    //start = print_TEST(ptr, type, len, row, start);
+    //////
+    unsigned char* p = *ptr;
+    unsigned char cmd = 0;
+    switch (type)
+    {
+    case T_PIXEL:
+        if (len < 16)
+        {
+            cmd = len << 4;
+            cmd |= 0x07;
+            *p++ = cmd;
+        }
+        else if (len <= 0xFF)
+        {
+            cmd = 0x07;
+            *p++ = cmd;
+            *p++ = len & 0xFF;
+        }
+        else
+        {
+            print_FILL(&p, type, len - 0xFF, row, start);
+            cmd = 0x07;
+            *p++ = cmd;
+            *p++ = 0xFF;
+        }
+        break;
+    case T_PLAYER_COLOR:
+        if (len < 16)
+        {
+            cmd = len << 4;
+            cmd |= 0x0A;
+            *p++ = cmd;
+        }
+        else if (len <= 0xFF)
+        {
+            cmd = 0x0A;
+            *p++ = cmd;
+            *p++ = len & 0xFF;
+        }
+        else
+            __debugbreak();
+        break;
+    default:
+        __debugbreak();
+        break;
+    }
+    *p++ = row[start].data;
+    *ptr = p;
+    return start + len;
+}
+
+int print_COPY(unsigned char** ptr, int type, int len, pixel* row, int start)
+{
+    //////
+    //start = print_TEST(ptr, type, len, row, start);
+    //////
+    unsigned char* p = *ptr;
+    /*bool fill_flag = false;
+    if (len >= 3)    //check run end
+    {
+    if ((row[start + len - 1] == row[start + len - 2]) && (row[start + len - 1] == row[start + len - 3]))
+    {
+    len -= 3;
+    fill_flag = true;
+    }
+    }*/
+    unsigned char cmd = 0;
+    switch (type)
+    {
+    case T_PIXEL:
+        if (len < 64)
+        {
+            cmd = len << 2;
+            *p++ = cmd;
+        }
+        else if (len <= 0xFFF)
+        {
+            cmd = len >> 4;
+            cmd &= 0xF0;
+            cmd |= 0x02;
+            *p++ = cmd;
+            *p++ = len & 0xFF;
+        }
+        else
+            __debugbreak();
+        break;
+    case T_PLAYER_COLOR:
+        if (len < 16)
+        {
+            cmd = len << 4;
+            cmd |= 0x06;
+            *p++ = cmd;
+        }
+        else if (len <= 0xFF)
+        {
+            cmd = 0x06;
+            *p++ = cmd;
+            *p++ = len & 0xFF;
+        }
+        else
+            __debugbreak();
+        break;
+    default:
+        __debugbreak();
+        break;
+    }
+    for (int i = 0; i < len; i++)
+    {
+        *p = row[start++].data;
+        p++;
+    }
+
+    //if (fill_flag)
+    //    start = print_FILL(&p, type, 3, row, start);
+
+    *ptr = p;
+    return start;
+}
+
+int print_SET(unsigned char** ptr, int type, int len, pixel* row, int start)
+{
+    //////
+    //start = print_TEST(ptr, type, len, row, start);
+    //////
+    unsigned char* p = *ptr;
+    unsigned char cmd = 0;
+    switch (type)
+    {
+    case T_SHADOW:
+        if (len < 16)
+        {
+            cmd = len << 4;
+            cmd |= 0x0B;
+            *p++ = cmd;
+        }
+        else if (len <= 0xFF)
+        {
+            cmd = 0x0B;
+            *p++ = cmd;
+            *p++ = len & 0xFF;
+        }
+        else
+        {
+            cmd = 0x0B;
+            *p++ = cmd;
+            *p++ = 0xFF;
+            //start = print_SET(&p, type, len - 0xFF, row, start += 0xFF);
+            print_SET(&p, type, len - 0xFF, row, start);
+        }
+        break;
+    case T_TRANSPARENT:
+        if (len < 64)
+        {
+            cmd = len << 2;
+            cmd |= 0x01;
+            *p++ = cmd;
+        }
+        else if (len <= 0xFFF)
+        {
+            cmd = len >> 4;
+            cmd &= 0xF0;
+            cmd |= 0x03;
+            *p++ = cmd;
+            *p++ = len & 0xFF;
+        }
+        else
+            __debugbreak();
+        break;
+    case T_OUTLINE_COLOR:
+        if (len > 1)
+        {
+            cmd = 0x5E;
+            *p++ = cmd;
+            *p++ = len & 0xFF;
+        }
+        else
+        {
+            cmd = 0x4E;
+            *p++ = cmd;
+        }
+        break;
+    case T_OUTLINE_SHIELD:
+        if (len > 1)
+        {
+            cmd = 0x7E;
+            *p++ = cmd;
+            *p++ = len & 0xFF;
+        }
+        else
+        {
+            cmd = 0x6E;
+            *p++ = cmd;
+        }
+        break;
+    }
+    *ptr = p;
+    return start + len;
+}
+bool compare_edges(rowedge** edge, int height, int frame)
+{
+    for (int i = 0; i < height; i++)
+        if ((edge[frame][i].left != edge[frame - 1][i].left) || (edge[frame][i].right != edge[frame - 1][i].right))
+            return false;
+    return true;
+}
+
+unsigned char* optimize(int* size, bool allow_fill)
+{
+    void* new_slp;
+    if (allow_fill)
+        new_slp = malloc(*size * 4);
+    else
+        new_slp = malloc(*size * 2);
+
+    unsigned char* ptr = (unsigned char*)new_slp;
+
+    memcpy(ptr, &hdr, sizeof(file_header));
+    ptr += sizeof(file_header);
+
+    //print header later, now skip
+    ptr += hdr.num_frames * 8 * sizeof(long);
+
+    for (int i = 0; i < hdr.num_frames; i++)
+    {
+        //dirty hack: store array here temporarly
+        if (frame_i[i].height > 0)
+            frame_i[i].cmd_table_offset = (unsigned long)malloc(sizeof(unsigned long) * frame_i[i].height);
+        else
+            frame_i[i].cmd_table_offset = 0;
+
+        for (int j = 0; j < frame_i[i].height; j++)
+        {
+            ((unsigned long*)frame_i[i].cmd_table_offset)[j] = ptr - (unsigned char*)new_slp;
+            int k = 0;
+            while ((frame_i[i].data[j][k].type == T_TRANSPARENT) && (k < (frame_i[i].width - edge[i][j].right)))
+                k++;
+            if (k >= frame_i[i].width)
+            {
+                edge[i][j].left = -32768; edge[i][j].right = -32768;
+                continue;
+            }
+            else
+            {
+                edge[i][j].left = k;
+                if (edge[i][j].right == -32768)
+                    edge[i][j].right = 0;
+            }
+
+            int start = k;
+            //main scan loop
+            int state;
+            int repeat = 1;
+            int len = 1;
+            int type = frame_i[i].data[j][k].type;
+            int data = frame_i[i].data[j][k].data;
+            switch (frame_i[i].data[j][k].type)
+            {
+            case T_PIXEL:
+            case T_PLAYER_COLOR:
+                state = COPY;
+                break;
+            case T_SHADOW:
+            case T_TRANSPARENT:
+            case T_OUTLINE_COLOR:
+            case T_OUTLINE_SHIELD:
+                state = SET;
+                break;
+            default:
+                __debugbreak();
+                break;
+            }
+            k++;
+
+            //below is an implementation of a state machine, refer to the graph
+            while (k < (frame_i[i].width - edge[i][j].right))
+            {
+                switch (state)
+                {
+                case COPY:
+                    if (frame_i[i].data[j][k].type == type)
+                    {
+                        if ((repeat < 3) || !allow_fill)
+                        {
+                            len++;
+                            if (data == frame_i[i].data[j][k].data)
+                                repeat++;
+                            else
+                                repeat = 1;
+                        }
+                        else
+                        {
+                            len -= 3;
+                            if (len != 0)
+                                start = print_COPY(&ptr, type, len, frame_i[i].data[j], start);
+                            state = FILL;
+                            len = 3;
+                            k--;
+                        }
+                    }
+                    else
+                    {
+                        start = print_COPY(&ptr, type, len, frame_i[i].data[j], start);
+                        len = 1;
+                        repeat = 1;
+                        switch (frame_i[i].data[j][k].type)
+                        {
+                        case T_PIXEL:
+                        case T_PLAYER_COLOR:
+                            break;
+                        case T_SHADOW:
+                        case T_TRANSPARENT:
+                        case T_OUTLINE_COLOR:
+                        case T_OUTLINE_SHIELD:
+                            state = SET;
+                            break;
+                        default:
+                            __debugbreak();
+                            break;
+                        }
+                    }
+                    break;
+                case FILL:
+                    if ((frame_i[i].data[j][k].type == type) && (frame_i[i].data[j][k].data == data))
+                        len++;
+                    else
+                    {
+                        start = print_FILL(&ptr, type, len, frame_i[i].data[j], start);
+                        len = 1;
+                        repeat = 1;
+                        switch (frame_i[i].data[j][k].type)
+                        {
+                        case T_PIXEL:
+                        case T_PLAYER_COLOR:
+                            state = COPY;
+                            break;
+                        case T_SHADOW:
+                        case T_TRANSPARENT:
+                        case T_OUTLINE_COLOR:
+                        case T_OUTLINE_SHIELD:
+                            state = SET;
+                            break;
+                        default:
+                            __debugbreak();
+                            break;
+                        }
+                    }
+                    break;
+                case SET:
+                    if (frame_i[i].data[j][k].type == type)
+                        len++;
+                    else
+                    {
+                        start = print_SET(&ptr, type, len, frame_i[i].data[j], start);
+                        len = 1;
+                        repeat = 1;
+                        switch (frame_i[i].data[j][k].type)
+                        {
+                        case T_PIXEL:
+                        case T_PLAYER_COLOR:
+                            state = COPY;
+                            break;
+                        case T_SHADOW:
+                        case T_TRANSPARENT:
+                        case T_OUTLINE_COLOR:
+                        case T_OUTLINE_SHIELD:
+                            break;
+                        default:
+                            __debugbreak();
+                            break;
+                        }
+                    }
+                    break;
+                default:
+                    __debugbreak();
+                    break;
+                }
+                type = frame_i[i].data[j][k].type;
+                data = frame_i[i].data[j][k].data;
+                k++;
+            }
+            //print what's left
+            switch (state)
+            {
+            case COPY:
+                start = print_COPY(&ptr, type, len, frame_i[i].data[j], start);
+                break;
+            case FILL:
+                start = print_FILL(&ptr, type, len, frame_i[i].data[j], start);
+                break;
+            case SET:
+                if (type != T_TRANSPARENT)
+                    start = print_SET(&ptr, type, len, frame_i[i].data[j], start);
+                else
+                    edge[i][j].right = len;        //might be off by one, check!!!!!!
+                break;
+            default:
+                __debugbreak();
+                break;
+            }
+            *ptr = 0x0F;    ptr++;
+        }
+    }
+    unsigned char* prev_frame_start_ptr = 0;
+    unsigned char* frame_start_ptr = 0;
+    //print outline offsets
+    for (int i = 0; i < hdr.num_frames; i++)
+    {
+        prev_frame_start_ptr = frame_start_ptr;
+        if (frame_i[i].cmd_table_offset)
+            frame_start_ptr = (unsigned char*)new_slp + ((unsigned long*)frame_i[i].cmd_table_offset)[0];
+        else
+        {
+            frame_i[i].width = 0;
+            frame_start_ptr = 0;
+            continue;
+        }
+
+        frame_i[i].outline_table_offset = ptr - (unsigned char*)new_slp;
+
+        //trim outline rows
+        short min = 0x7FFF;
+        for (int j = 0; j < frame_i[i].height; j++)
+            if ((edge[i][j].left < min) && (edge[i][j].left != -32768))
+                min = edge[i][j].left;
+        if (min == 0x7FFF)    //frame is blank
+        {
+            frame_i[i].height = 0;
+            frame_i[i].width = 0;
+            frame_i[i].cmd_table_offset = 0;
+            frame_i[i].outline_table_offset = 0;
+            continue;
+        }
+        for (int j = 0; j < frame_i[i].height; j++)
+        {
+            if (edge[i][j].left != -32768)
+                edge[i][j].left -= min;
+            if (edge[i][j].right != -32768)
+                edge[i][j].right += min;
+        }
+        if (min != 0x7FFF)
+            frame_i[i].hotspot_x -= min;
+
+        //now, remove redudant rows
+        int first = 0;
+        int last = frame_i[i].height;
+        while ((edge[i][first].left == -32768) && (edge[i][first].right == -32768))
+        {
+            first++;
+            frame_i[i].hotspot_y--;
+            frame_i[i].height--;
+        }
+        do
+        {
+            last--;
+            frame_i[i].height--;
+        } while ((edge[i][last].left == -32768) && (edge[i][last].right == -32768));
+
+        frame_i[i].height++;
+
+        //compare with previous frame
+        if (!prev_frame_start_ptr || (frame_start_ptr == prev_frame_start_ptr) ||
+            memcmp(prev_frame_start_ptr, frame_start_ptr, frame_start_ptr - prev_frame_start_ptr) ||
+            !((frame_i[i].height == frame_i[i - 1].height) && compare_edges(edge, frame_i[i].height, i)))
+        {
+            short* p = (short*)ptr;
+            for (int j = first; j <= last; j++)
+            {
+                *p = edge[i][j].left; p++;
+                *p = edge[i][j].right; p++;
+            }
+            ptr = (unsigned char*)p;
+
+            //print cmd table offsets
+            unsigned long cmd_table_offset_tmp = (unsigned long)(ptr - (unsigned char*)new_slp);
+            unsigned long* q = (unsigned long*)ptr;
+            for (int j = first; j <= last; j++)
+            {
+                *q = ((unsigned long*)frame_i[i].cmd_table_offset)[j];    q++;
+            }
+            ptr = (unsigned char*)q;
+            free((void*)frame_i[i].cmd_table_offset);
+            frame_i[i].cmd_table_offset = cmd_table_offset_tmp;
+        }
+        else    //frames are equal
+        {
+            memmove(frame_start_ptr, frame_start_ptr + (frame_start_ptr - prev_frame_start_ptr),
+                ptr - (frame_start_ptr + (frame_start_ptr - prev_frame_start_ptr)));
+            ptr -= frame_start_ptr - prev_frame_start_ptr;
+            free((void*)frame_i[i].cmd_table_offset);
+
+            for (int k = 0; k < i; k++)
+                frame_i[k].cmd_table_offset -= frame_start_ptr - prev_frame_start_ptr;
+            frame_i[i].cmd_table_offset = frame_i[i - 1].cmd_table_offset;
+            frame_i[i].outline_table_offset = frame_i[i - 1].outline_table_offset;
+
+            for (int k = 0; k < hdr.num_frames; k++)
+            {
+                if (k > i)
+                    for (int s = 0; s < frame_i[k].height; s++)
+                        ((unsigned long*)frame_i[k].cmd_table_offset)[s] -= frame_start_ptr - prev_frame_start_ptr;
+                frame_i[k].outline_table_offset -= frame_start_ptr - prev_frame_start_ptr;
+            }
+
+            frame_start_ptr = prev_frame_start_ptr;
+        }
+    }
+    *size = ptr - (unsigned char*)new_slp;
+    ptr = (unsigned char*)new_slp + sizeof(file_header);
+    for (int i = 0; i < hdr.num_frames; i++)
+    {
+        *(unsigned long*)ptr = frame_i[i].cmd_table_offset;        ptr += 4;
+        *(unsigned long*)ptr = frame_i[i].outline_table_offset;    ptr += 4;
+        *(unsigned long*)ptr = frame_i[i].palette_offset;        ptr += 4;
+        *(unsigned long*)ptr = frame_i[i].properties;            ptr += 4;
+        *(long*)ptr = frame_i[i].width;                            ptr += 4;
+        *(long*)ptr = frame_i[i].height;                        ptr += 4;
+        *(long*)ptr = frame_i[i].hotspot_x;                        ptr += 4;
+        *(long*)ptr = frame_i[i].hotspot_y;                        ptr += 4;
+    }
+
+    return (unsigned char*)new_slp;
+}
+// //i know it could be better to use slp classe but impossible to cast function as DWORD 
+//DWORD optimizeSlp = (DWORD) optimize ;
+ 
 void wideScreenHook()
 {
 	//004F66F0  |. BA 2AD00000    MOV EDX,0D02A
@@ -931,4 +1542,21 @@ void wideScreenHook()
     //writeByte(0x051FBBF, 0xEB);
     //writeByte(0x51FBC0, 0x7D);
     //Nop(0x051FBC1, 7);
+    //no work :(
+    //InjectHook(0x0543238  ,optimize, PATCH_CALL);
+    //InjectHook(0x05433F4  ,optimize, PATCH_CALL);
+    ////InjectHook(0x060EB83  ,optimize, PATCH_CALL);
+    //InjectHook(0x060EBDD  ,optimize, PATCH_CALL);
+    //InjectHook(0x060F3AF  ,optimize, PATCH_CALL);
 }
+
+//analyzie
+//00632D34.A9 00800000    TEST EAX, 8000   == 32768 check slp strach function
+//00632D39   . 0F85 81090000  JNZ age2_x1_.006336C0
+//
+//we jump
+
+//if (edge[i][j].right == -32768)
+//edge[i][j].right = 0;
+//00651BC0   $ 55             PUSH EBP
+
