@@ -1,8 +1,11 @@
 #include "wideScreen.h"
+#include "drsfile.h"
 
 #include <atomic>
 #include <stdio.h>
 #include <string>
+#include "slp.h"
+ 
 //#include "slp.h"
 
 
@@ -171,10 +174,10 @@ bool patchEXE(int X, int Y) //needs to be completed...
         writeDwordF3(0x1D98E9, X + 1);
         //writeDwordF3(0x1F6757, X+1); //not res
     }
-    else
-    {
-        MessageBox(0, "Resolutions lower than 768V are not supported", "Error", MB_ICONERROR);
-    }
+    //else
+    //{
+    //    MessageBox(0, "Resolutions lower than 768V are not supported", "Error", MB_ICONERROR);
+    //}
 
     if (Y >= 1024)
     {
@@ -411,11 +414,12 @@ void  __declspec(naked) f_Aoc10C_007BF9D0()
         MOV BYTE PTR DS : [Aoc10C_7A5609] , 1h
         //MOV ECX, DWORD PTR DS : [7912A0h]
         MOV ECX, DWORD PTR DS : [6A3684h]
-        MOV ECX, DWORD PTR DS : [ECX + 28h]
-        CMP DWORD PTR DS : [ECX + 8F4h] , ESI
-        JNZ short _007BFA69
-        CMP DWORD PTR DS : [ECX + 8FCh] , EDI
-        JNZ short _007BFA69
+        //MOV ECX, DWORD PTR DS : [ECX + 28h]
+        MOV ECX, DWORD PTR DS : [ECX + 24h]
+        //CMP DWORD PTR DS : [ECX + 8F4h] , ESI
+        //JNZ short _007BFA69
+        //CMP DWORD PTR DS : [ECX + 8FCh] , EDI
+        //JNZ short _007BFA69
         MOV ECX, EBX
         MOVSX EAX, WORD PTR DS : [ECX + 0FCh]
         DEC EAX
@@ -466,9 +470,9 @@ void __declspec(naked)  f_Aoc10C_007BF980()
         PUSH 0h
         PUSH EAX
         CALL DWORD PTR DS : [ECX + 20h]
-        //CMP WORD PTR DS : [Aoc10C_7A5608] , 20h //WORD PTR DS : [7A5608h] , 20h
-        //MOV BYTE PTR DS : [Aoc10C_7A5608] , 8h//MOV BYTE PTR DS : [7A5608h] , 8h
-        //JE short _007BF99A
+        CMP WORD PTR DS : [Aoc10C_7A5608] , 20h //WORD PTR DS : [7A5608h] , 20h
+        MOV BYTE PTR DS : [Aoc10C_7A5608] , 8h//MOV BYTE PTR DS : [7A5608h] , 8h
+        JE short _007BF99A
         RETN 4h
     }
 }
@@ -614,7 +618,7 @@ DWORD Aoc10C_006137C9 = 0x06137C9;
 DWORD battlegr_00632CCA = 0x0632CCA;
 //00632D33  /$ 55             PUSH EBP
 DWORD battlegr_00632D33= 0x0632D33;
-
+//care in aoc we don't have same dimension, slp that explain bugs
 void __declspec(naked) f_Aoc10C_007C1C38()
 {
     __asm
@@ -625,13 +629,14 @@ void __declspec(naked) f_Aoc10C_007C1C38()
         MOV EDX, DWORD PTR SS : [EBP + 30h]
         PUSH 0h
         PUSH ECX
-        PUSH EAX
-        PUSH 19h
+        PUSH EAX//y?
+        PUSH 19h//top bare size
+ 
         PUSH EDX
         PUSH 0h
         PUSH ESI
         PUSH EBP
-        CMP EDX, 400h
+        CMP EDX, 400h//1024
         JGE short _007C1C60
         MOV DWORD PTR SS : [ESP + 20h] , 0D6h
         JMP short _007C1C68
@@ -641,15 +646,17 @@ void __declspec(naked) f_Aoc10C_007C1C38()
         SUB ESI, EDX
         AND ESI, ESI
         JL _007C1EE3
-        _007C1C72 :
+            _007C1C72 :
+        //we remove top bar copy byte
         MOV DWORD PTR SS : [ESP + 4h] , ESI
         CALL Aoc10C_007C1EF0
         MOV DWORD PTR DS : [7A4038h] , 0h
         MOV EDX, DWORD PTR SS : [EBP + 30h]
         SUB ESI, EDX
-        ADD ESI, 190h
+        ADD ESI, 190h//fix top bare villager
         AND ESI, ESI
         JG short _007C1C72
+        //we remove top bar copy byte
         MOV DWORD PTR SS : [ESP + 4h] , 0h
         CALL Aoc10C_007C1EF0
         MOV ECX, DWORD PTR DS : [7A4004h]
@@ -667,14 +674,14 @@ void __declspec(naked) f_Aoc10C_007C1C38()
         CMP DWORD PTR DS : [EAX + 10h] , ESI
         JGE short _007C1D0D
         PUSH EAX
-        CALL battlegr_00632CCA//Aoc10C_006139B4
+        CALL battlegr_00632CCA//Aoc10C_006139B4 heap free
         ADD ESP, 4h
         _007C1CDA :
         SHL ESI, 2h
         ADD ESI, 14h
         PUSH ESI
         PUSH 1h
-        CALL battlegr_00632D33//Aoc10C_006137C9
+        CALL battlegr_00632D33//Aoc10C_006137C9//heap alloc
         ADD ESP, 8h
         MOV DWORD PTR DS : [Aoc10C_7A5500] , EAX
         TEST EAX, EAX
@@ -697,6 +704,7 @@ void __declspec(naked) f_Aoc10C_007C1C38()
         LEA EBX, DWORD PTR DS : [EDX + ESI]
         MOV EDX, DWORD PTR SS : [ESP + 40h]
         SUB EAX, EDX
+        //MOV EDX,-10h
         MOV DWORD PTR SS : [ESP + 10h] , EDX
         MOV DWORD PTR SS : [ESP + 8h] , EAX
         MOV ECX, DWORD PTR SS : [ESP + 38h]
@@ -716,6 +724,7 @@ void __declspec(naked) f_Aoc10C_007C1C38()
         MOV DWORD PTR SS : [ESP + 24h] , EAX
         MOV EAX, EDI
         SUB EAX, EDX
+        MOV EDX, -10h
         LEA ECX, DWORD PTR DS : [EDI - 198h]
         LEA EDX, DWORD PTR DS : [EDI - 1h]
         MOV DWORD PTR SS : [ESP + 1Ch] , 0h
@@ -727,7 +736,7 @@ void __declspec(naked) f_Aoc10C_007C1C38()
         MOV EAX, DWORD PTR SS : [ESP + 24h]
         MOV EDX, DWORD PTR SS : [ESP + 3Ch]
         MOV ECX, DWORD PTR DS : [EAX + 0Ch]
-        CMP DWORD PTR SS : [ESP + 20h] , 116h
+        CMP DWORD PTR SS : [ESP + 20h] , 116h //copyed byte (on copy a partir de )
         JE short _007C1DBD
         MOV ESI, 0DAh
         LEA EBX, DWORD PTR DS : [EDI - 128h]
@@ -735,7 +744,8 @@ void __declspec(naked) f_Aoc10C_007C1C38()
         LEA EBP, DWORD PTR DS : [EDX - 434h]
         JMP short _007C1DD3
         _007C1DBD :
-        MOV ESI, 119h
+        //MOV ESI, 119h//midle bar replication
+        MOV ESI, 200h//midle bar replication
         LEA EBX, DWORD PTR DS : [EDI - 160h]
         MOV EDI, -2Ah
         LEA EBP, DWORD PTR DS : [EDX - 576h]
@@ -757,6 +767,8 @@ void __declspec(naked) f_Aoc10C_007C1C38()
         CALL Aoc10C_007C1F20
         JMP short _007C1E18
         _007C1E09 :
+        //0x0500386
+        //0x0651C48
         MOV ECX, DWORD PTR SS : [ESP + 38h]
         MOV DWORD PTR DS : [7A4004h] , ECX
         CALL Aoc10C_007C1EF0
@@ -792,9 +804,10 @@ void __declspec(naked) f_Aoc10C_007C1C38()
         LEA EDX, DWORD PTR DS : [ESI + 30h]
         CMP EDX, EBX
         JLE short _007C1E31
+        //0x0500386
         MOV EDX, EBX
         MOV DWORD PTR SS : [ESP + 1Ch] , 0h
-        MOV DWORD PTR DS : [7A4038h] , 1C7h
+        MOV DWORD PTR DS : [7A4038h] , 1C7h//position of top bar?
         MOV DWORD PTR SS : [ESP + 2Ch] , EDX
         MOV DWORD PTR SS : [ESP + 28h] , ESI
         MOV DWORD PTR SS : [ESP + 4h] , EDI
@@ -803,7 +816,7 @@ void __declspec(naked) f_Aoc10C_007C1C38()
         _007C1EBE :
         MOV EDX, EBX
         MOV DWORD PTR SS : [ESP + 1Ch] , 2h
-        MOV DWORD PTR DS : [7A4038h] , 1C7h
+        MOV DWORD PTR DS : [7A4038h] , 1C7h//position of top bar?
         MOV DWORD PTR SS : [ESP + 2Ch] , EDX
         MOV DWORD PTR SS : [ESP + 28h] , ESI
         MOV DWORD PTR SS : [ESP + 4h] , EBP
@@ -819,7 +832,7 @@ void __declspec(naked) f_Aoc10C_007C1C38()
 }
 
 DWORD Aoc10C_007C1C38 = (DWORD)f_Aoc10C_007C1C38;// 0x07C1C38;
-
+//0x0500386
 void __declspec(naked) ResizeslpInterface()
 {
     __asm
@@ -862,12 +875,15 @@ void __declspec(naked) ResizeslpInterface()
         PUSH EDX
         PUSH EAX
         MOV EDX, DWORD PTR SS : [EBP + 30h]
-        PUSH 19h
+        //top bar
+        //PUSH 19h
+        PUSH 100h
         PUSH EDX
         PUSH 0h
         PUSH 0h
-        PUSH EBP
+        PUSH EBP//X
         CALL Aoc10C_007C1EF0//Aoc10C_007C1EF0
+        //down bar
         MOV EDX, DWORD PTR SS : [EBP + 34h]
         MOV EAX, EBX
         MOV DWORD PTR DS : [7A4038h] , 1C7h
@@ -887,623 +903,172 @@ void __declspec(naked) ResizeslpInterface()
     }
 }
 
-//additional structures
-struct pixel
+
+DWORD _0065279C = 0x065279C;
+void __declspec(naked) testFix()
 {
-    unsigned char type;
-    unsigned char data;
-    bool operator==(const pixel& p)
+    __asm
     {
-        return ((p.type == type) && (p.data == data));
+        MOV DWORD PTR DS : [7A4018h] , EAX
+        //00652799   > 3B57 0C        CMP EDX,DWORD PTR DS:[EDI+C]
+        CMP EDI, 0F0000000h
+        Jg force
+        CMP EDX, DWORD PTR DS : [EDI + 0Ch]
+        JMP _0065279C  
+        force:
+        MOV EDI,   DWORD PTR DS : [7A4004h]
+        CMP EDX, DWORD PTR DS : [EDI + 0Ch]
+        JMP _0065279C
     }
-};
-
-enum types
-{
-    T_PIXEL,
-    T_PLAYER_COLOR,
-    T_TRANSPARENT,
-    T_SHADOW,
-    T_OUTLINE_SHIELD,
-    T_OUTLINE_COLOR
-};
-
-//SLP structures
-
-struct file_header
-{
-    char  version[4];
-    long  num_frames;
-    char  comment[24];
-};
-
-struct frame_info
-{
-    unsigned long    cmd_table_offset;
-    unsigned long    outline_table_offset;
-    unsigned long    palette_offset;
-    unsigned long    properties;
-    long    width;
-    long    height;
-    long    hotspot_x;
-    long    hotspot_y;
-    //
-    pixel** data;
-};
-
-struct rowedge
-{
-    short left, right;
-};
-
-//parser state machine states
-enum states
-{
-    COPY,
-    FILL,
-    SET
-};
-std::string file;
-
-file_header hdr;
-frame_info* frame_i;
-rowedge** edge;
-long** rowoffset;
-
-bool loaded;
-
-long pixels_total;
-////////////------------------------
-int print_TEST(unsigned char** ptr, int type, int len, pixel* row, int start)
-{
-    UNREFERENCED_PARAMETER(row);
-    UNREFERENCED_PARAMETER(type);
-    unsigned char* p = *ptr;
-    unsigned char cmd = 0;
-    cmd = 0x0E;
-    *p++ = cmd;
-    *ptr = p;
-    return start + len;
 }
-////////////------------------------
-
-int print_FILL(unsigned char** ptr, int type, int len, pixel* row, int start)
+DWORD u_Cord_X;
+DWORD u_Cord_Y;
+void  wide()
 {
-    //////
-    //start = print_TEST(ptr, type, len, row, start);
-    //////
-    unsigned char* p = *ptr;
-    unsigned char cmd = 0;
-    switch (type)
-    {
-    case T_PIXEL:
-        if (len < 16)
-        {
-            cmd = len << 4;
-            cmd |= 0x07;
-            *p++ = cmd;
-        }
-        else if (len <= 0xFF)
-        {
-            cmd = 0x07;
-            *p++ = cmd;
-            *p++ = len & 0xFF;
-        }
-        else
-        {
-            print_FILL(&p, type, len - 0xFF, row, start);
-            cmd = 0x07;
-            *p++ = cmd;
-            *p++ = 0xFF;
-        }
-        break;
-    case T_PLAYER_COLOR:
-        if (len < 16)
-        {
-            cmd = len << 4;
-            cmd |= 0x0A;
-            *p++ = cmd;
-        }
-        else if (len <= 0xFF)
-        {
-            cmd = 0x0A;
-            *p++ = cmd;
-            *p++ = len & 0xFF;
-        }
-        else
-            __debugbreak();
-        break;
-    default:
-        __debugbreak();
-        break;
-    }
-    *p++ = row[start].data;
-    *ptr = p;
-    return start + len;
-}
-
-int print_COPY(unsigned char** ptr, int type, int len, pixel* row, int start)
-{
-    //////
-    //start = print_TEST(ptr, type, len, row, start);
-    //////
-    unsigned char* p = *ptr;
-    /*bool fill_flag = false;
-    if (len >= 3)    //check run end
-    {
-    if ((row[start + len - 1] == row[start + len - 2]) && (row[start + len - 1] == row[start + len - 3]))
-    {
-    len -= 3;
-    fill_flag = true;
-    }
-    }*/
-    unsigned char cmd = 0;
-    switch (type)
-    {
-    case T_PIXEL:
-        if (len < 64)
-        {
-            cmd = len << 2;
-            *p++ = cmd;
-        }
-        else if (len <= 0xFFF)
-        {
-            cmd = len >> 4;
-            cmd &= 0xF0;
-            cmd |= 0x02;
-            *p++ = cmd;
-            *p++ = len & 0xFF;
-        }
-        else
-            __debugbreak();
-        break;
-    case T_PLAYER_COLOR:
-        if (len < 16)
-        {
-            cmd = len << 4;
-            cmd |= 0x06;
-            *p++ = cmd;
-        }
-        else if (len <= 0xFF)
-        {
-            cmd = 0x06;
-            *p++ = cmd;
-            *p++ = len & 0xFF;
-        }
-        else
-            __debugbreak();
-        break;
-    default:
-        __debugbreak();
-        break;
-    }
-    for (int i = 0; i < len; i++)
-    {
-        *p = row[start++].data;
-        p++;
-    }
-
-    //if (fill_flag)
-    //    start = print_FILL(&p, type, 3, row, start);
-
-    *ptr = p;
-    return start;
-}
-
-int print_SET(unsigned char** ptr, int type, int len, pixel* row, int start)
-{
-    //////
-    //start = print_TEST(ptr, type, len, row, start);
-    //////
-    unsigned char* p = *ptr;
-    unsigned char cmd = 0;
-    switch (type)
-    {
-    case T_SHADOW:
-        if (len < 16)
-        {
-            cmd = len << 4;
-            cmd |= 0x0B;
-            *p++ = cmd;
-        }
-        else if (len <= 0xFF)
-        {
-            cmd = 0x0B;
-            *p++ = cmd;
-            *p++ = len & 0xFF;
-        }
-        else
-        {
-            cmd = 0x0B;
-            *p++ = cmd;
-            *p++ = 0xFF;
-            //start = print_SET(&p, type, len - 0xFF, row, start += 0xFF);
-            print_SET(&p, type, len - 0xFF, row, start);
-        }
-        break;
-    case T_TRANSPARENT:
-        if (len < 64)
-        {
-            cmd = len << 2;
-            cmd |= 0x01;
-            *p++ = cmd;
-        }
-        else if (len <= 0xFFF)
-        {
-            cmd = len >> 4;
-            cmd &= 0xF0;
-            cmd |= 0x03;
-            *p++ = cmd;
-            *p++ = len & 0xFF;
-        }
-        else
-            __debugbreak();
-        break;
-    case T_OUTLINE_COLOR:
-        if (len > 1)
-        {
-            cmd = 0x5E;
-            *p++ = cmd;
-            *p++ = len & 0xFF;
-        }
-        else
-        {
-            cmd = 0x4E;
-            *p++ = cmd;
-        }
-        break;
-    case T_OUTLINE_SHIELD:
-        if (len > 1)
-        {
-            cmd = 0x7E;
-            *p++ = cmd;
-            *p++ = len & 0xFF;
-        }
-        else
-        {
-            cmd = 0x6E;
-            *p++ = cmd;
-        }
-        break;
-    }
-    *ptr = p;
-    return start + len;
-}
-bool compare_edges(rowedge** edge, int height, int frame)
-{
-    for (int i = 0; i < height; i++)
-        if ((edge[frame][i].left != edge[frame - 1][i].left) || (edge[frame][i].right != edge[frame - 1][i].right))
-            return false;
-    return true;
-}
-
-unsigned char* optimize(int* size, bool allow_fill)
-{
-    void* new_slp;
-    if (allow_fill)
-        new_slp = malloc(*size * 4);
-    else
-        new_slp = malloc(*size * 2);
-
-    unsigned char* ptr = (unsigned char*)new_slp;
-
-    memcpy(ptr, &hdr, sizeof(file_header));
-    ptr += sizeof(file_header);
-
-    //print header later, now skip
-    ptr += hdr.num_frames * 8 * sizeof(long);
-
-    for (int i = 0; i < hdr.num_frames; i++)
-    {
-        //dirty hack: store array here temporarly
-        if (frame_i[i].height > 0)
-            frame_i[i].cmd_table_offset = (unsigned long)malloc(sizeof(unsigned long) * frame_i[i].height);
-        else
-            frame_i[i].cmd_table_offset = 0;
-
-        for (int j = 0; j < frame_i[i].height; j++)
-        {
-            ((unsigned long*)frame_i[i].cmd_table_offset)[j] = ptr - (unsigned char*)new_slp;
-            int k = 0;
-            while ((frame_i[i].data[j][k].type == T_TRANSPARENT) && (k < (frame_i[i].width - edge[i][j].right)))
-                k++;
-            if (k >= frame_i[i].width)
-            {
-                edge[i][j].left = -32768; edge[i][j].right = -32768;
-                continue;
-            }
-            else
-            {
-                edge[i][j].left = k;
-                if (edge[i][j].right == -32768)
-                    edge[i][j].right = 0;
-            }
-
-            int start = k;
-            //main scan loop
-            int state;
-            int repeat = 1;
-            int len = 1;
-            int type = frame_i[i].data[j][k].type;
-            int data = frame_i[i].data[j][k].data;
-            switch (frame_i[i].data[j][k].type)
-            {
-            case T_PIXEL:
-            case T_PLAYER_COLOR:
-                state = COPY;
-                break;
-            case T_SHADOW:
-            case T_TRANSPARENT:
-            case T_OUTLINE_COLOR:
-            case T_OUTLINE_SHIELD:
-                state = SET;
-                break;
-            default:
-                __debugbreak();
-                break;
-            }
-            k++;
-
-            //below is an implementation of a state machine, refer to the graph
-            while (k < (frame_i[i].width - edge[i][j].right))
-            {
-                switch (state)
-                {
-                case COPY:
-                    if (frame_i[i].data[j][k].type == type)
-                    {
-                        if ((repeat < 3) || !allow_fill)
-                        {
-                            len++;
-                            if (data == frame_i[i].data[j][k].data)
-                                repeat++;
-                            else
-                                repeat = 1;
-                        }
-                        else
-                        {
-                            len -= 3;
-                            if (len != 0)
-                                start = print_COPY(&ptr, type, len, frame_i[i].data[j], start);
-                            state = FILL;
-                            len = 3;
-                            k--;
-                        }
-                    }
-                    else
-                    {
-                        start = print_COPY(&ptr, type, len, frame_i[i].data[j], start);
-                        len = 1;
-                        repeat = 1;
-                        switch (frame_i[i].data[j][k].type)
-                        {
-                        case T_PIXEL:
-                        case T_PLAYER_COLOR:
-                            break;
-                        case T_SHADOW:
-                        case T_TRANSPARENT:
-                        case T_OUTLINE_COLOR:
-                        case T_OUTLINE_SHIELD:
-                            state = SET;
-                            break;
-                        default:
-                            __debugbreak();
-                            break;
-                        }
-                    }
-                    break;
-                case FILL:
-                    if ((frame_i[i].data[j][k].type == type) && (frame_i[i].data[j][k].data == data))
-                        len++;
-                    else
-                    {
-                        start = print_FILL(&ptr, type, len, frame_i[i].data[j], start);
-                        len = 1;
-                        repeat = 1;
-                        switch (frame_i[i].data[j][k].type)
-                        {
-                        case T_PIXEL:
-                        case T_PLAYER_COLOR:
-                            state = COPY;
-                            break;
-                        case T_SHADOW:
-                        case T_TRANSPARENT:
-                        case T_OUTLINE_COLOR:
-                        case T_OUTLINE_SHIELD:
-                            state = SET;
-                            break;
-                        default:
-                            __debugbreak();
-                            break;
-                        }
-                    }
-                    break;
-                case SET:
-                    if (frame_i[i].data[j][k].type == type)
-                        len++;
-                    else
-                    {
-                        start = print_SET(&ptr, type, len, frame_i[i].data[j], start);
-                        len = 1;
-                        repeat = 1;
-                        switch (frame_i[i].data[j][k].type)
-                        {
-                        case T_PIXEL:
-                        case T_PLAYER_COLOR:
-                            state = COPY;
-                            break;
-                        case T_SHADOW:
-                        case T_TRANSPARENT:
-                        case T_OUTLINE_COLOR:
-                        case T_OUTLINE_SHIELD:
-                            break;
-                        default:
-                            __debugbreak();
-                            break;
-                        }
-                    }
-                    break;
-                default:
-                    __debugbreak();
-                    break;
-                }
-                type = frame_i[i].data[j][k].type;
-                data = frame_i[i].data[j][k].data;
-                k++;
-            }
-            //print what's left
-            switch (state)
-            {
-            case COPY:
-                start = print_COPY(&ptr, type, len, frame_i[i].data[j], start);
-                break;
-            case FILL:
-                start = print_FILL(&ptr, type, len, frame_i[i].data[j], start);
-                break;
-            case SET:
-                if (type != T_TRANSPARENT)
-                    start = print_SET(&ptr, type, len, frame_i[i].data[j], start);
-                else
-                    edge[i][j].right = len;        //might be off by one, check!!!!!!
-                break;
-            default:
-                __debugbreak();
-                break;
-            }
-            *ptr = 0x0F;    ptr++;
-        }
-    }
-    unsigned char* prev_frame_start_ptr = 0;
-    unsigned char* frame_start_ptr = 0;
-    //print outline offsets
-    for (int i = 0; i < hdr.num_frames; i++)
-    {
-        prev_frame_start_ptr = frame_start_ptr;
-        if (frame_i[i].cmd_table_offset)
-            frame_start_ptr = (unsigned char*)new_slp + ((unsigned long*)frame_i[i].cmd_table_offset)[0];
-        else
-        {
-            frame_i[i].width = 0;
-            frame_start_ptr = 0;
-            continue;
-        }
-
-        frame_i[i].outline_table_offset = ptr - (unsigned char*)new_slp;
-
-        //trim outline rows
-        short min = 0x7FFF;
-        for (int j = 0; j < frame_i[i].height; j++)
-            if ((edge[i][j].left < min) && (edge[i][j].left != -32768))
-                min = edge[i][j].left;
-        if (min == 0x7FFF)    //frame is blank
-        {
-            frame_i[i].height = 0;
-            frame_i[i].width = 0;
-            frame_i[i].cmd_table_offset = 0;
-            frame_i[i].outline_table_offset = 0;
-            continue;
-        }
-        for (int j = 0; j < frame_i[i].height; j++)
-        {
-            if (edge[i][j].left != -32768)
-                edge[i][j].left -= min;
-            if (edge[i][j].right != -32768)
-                edge[i][j].right += min;
-        }
-        if (min != 0x7FFF)
-            frame_i[i].hotspot_x -= min;
-
-        //now, remove redudant rows
-        int first = 0;
-        int last = frame_i[i].height;
-        while ((edge[i][first].left == -32768) && (edge[i][first].right == -32768))
-        {
-            first++;
-            frame_i[i].hotspot_y--;
-            frame_i[i].height--;
-        }
-        do
-        {
-            last--;
-            frame_i[i].height--;
-        } while ((edge[i][last].left == -32768) && (edge[i][last].right == -32768));
-
-        frame_i[i].height++;
-
-        //compare with previous frame
-        if (!prev_frame_start_ptr || (frame_start_ptr == prev_frame_start_ptr) ||
-            memcmp(prev_frame_start_ptr, frame_start_ptr, frame_start_ptr - prev_frame_start_ptr) ||
-            !((frame_i[i].height == frame_i[i - 1].height) && compare_edges(edge, frame_i[i].height, i)))
-        {
-            short* p = (short*)ptr;
-            for (int j = first; j <= last; j++)
-            {
-                *p = edge[i][j].left; p++;
-                *p = edge[i][j].right; p++;
-            }
-            ptr = (unsigned char*)p;
-
-            //print cmd table offsets
-            unsigned long cmd_table_offset_tmp = (unsigned long)(ptr - (unsigned char*)new_slp);
-            unsigned long* q = (unsigned long*)ptr;
-            for (int j = first; j <= last; j++)
-            {
-                *q = ((unsigned long*)frame_i[i].cmd_table_offset)[j];    q++;
-            }
-            ptr = (unsigned char*)q;
-            free((void*)frame_i[i].cmd_table_offset);
-            frame_i[i].cmd_table_offset = cmd_table_offset_tmp;
-        }
-        else    //frames are equal
-        {
-            memmove(frame_start_ptr, frame_start_ptr + (frame_start_ptr - prev_frame_start_ptr),
-                ptr - (frame_start_ptr + (frame_start_ptr - prev_frame_start_ptr)));
-            ptr -= frame_start_ptr - prev_frame_start_ptr;
-            free((void*)frame_i[i].cmd_table_offset);
-
-            for (int k = 0; k < i; k++)
-                frame_i[k].cmd_table_offset -= frame_start_ptr - prev_frame_start_ptr;
-            frame_i[i].cmd_table_offset = frame_i[i - 1].cmd_table_offset;
-            frame_i[i].outline_table_offset = frame_i[i - 1].outline_table_offset;
-
-            for (int k = 0; k < hdr.num_frames; k++)
-            {
-                if (k > i)
-                    for (int s = 0; s < frame_i[k].height; s++)
-                        ((unsigned long*)frame_i[k].cmd_table_offset)[s] -= frame_start_ptr - prev_frame_start_ptr;
-                frame_i[k].outline_table_offset -= frame_start_ptr - prev_frame_start_ptr;
-            }
-
-            frame_start_ptr = prev_frame_start_ptr;
-        }
-    }
-    *size = ptr - (unsigned char*)new_slp;
-    ptr = (unsigned char*)new_slp + sizeof(file_header);
-    for (int i = 0; i < hdr.num_frames; i++)
-    {
-        *(unsigned long*)ptr = frame_i[i].cmd_table_offset;        ptr += 4;
-        *(unsigned long*)ptr = frame_i[i].outline_table_offset;    ptr += 4;
-        *(unsigned long*)ptr = frame_i[i].palette_offset;        ptr += 4;
-        *(unsigned long*)ptr = frame_i[i].properties;            ptr += 4;
-        *(long*)ptr = frame_i[i].width;                            ptr += 4;
-        *(long*)ptr = frame_i[i].height;                        ptr += 4;
-        *(long*)ptr = frame_i[i].hotspot_x;                        ptr += 4;
-        *(long*)ptr = frame_i[i].hotspot_y;                        ptr += 4;
-    }
-
-    return (unsigned char*)new_slp;
-}
-// //i know it could be better to use slp classe but impossible to cast function as DWORD 
-//DWORD optimizeSlp = (DWORD) optimize ;
  
+    int V = 0;
+    int H = 0;
+
+    int cpt = 0;
+
+
+ 
+    V = (int)u_Cord_Y;
+    //LeaveCriticalSection(&cs_Cord_Y);
+    //EnterCriticalSection(&cs_Cord_X);
+    H = (int)u_Cord_X;
+    //EnterCriticalSection(&cs_Cord_X);
+ 
+    //Nop(0x04DF2D5, 6);
+    //Nop(0x04DF2F8, 6);
+
+ 
+    patchEXE(H, V);
+ 
+
+}
+//resize dyamicaly screen
+//"map1280.bmp"
+//004F66EE  |.^75 E5          \JNZ SHORT battlegr.004F66D5
+DWORD _wide = (DWORD)wide;
+DWORD EAX_wide;
+DWORD ECX_wide;
+ 
+DWORD _005C6230 = 0x05C6230;
+DWORD _004F66FF = 0x04F66FF  ;
+
+//0x04F66EE
+void __declspec(naked)  u_AddWideScreenPanelreadXY()
+{
+    __asm {
+
+        CALL _005C6230
+        MOV EAX_wide, EAX
+        MOV ECX_wide, ECX
+        MOV EAX, DWORD PTR DS : [EDI + 18h]//Y            
+        MOV u_Cord_Y, EAX
+ 
+        MOV EAX, DWORD PTR DS : [EDI + 14h]//X
+        MOV u_Cord_X, EAX
+
+        call _wide
+        MOV EAX, EAX_wide
+        MOV ECX, ECX_wide
+ 
+        JMP _004F66FF
+ 
+    };
+}
+
+
+
+DWORD _004D998C = 0x04D998C;
+DWORD _Res__X = (DWORD)GetSystemMetrics(SM_CXSCREEN);
+DWORD _Res__Y = (DWORD)GetSystemMetrics(SM_CYSCREEN);
+//0041BCC5     B9 00040000                  MOV ECX, 400
+
+DWORD _0041BD2B = 0x041BD2B;
+DWORD _getscreenEax = 0x041BD2B;
+void __declspec(naked)  setScreenRes()
+{
+    __asm {
+        /*	MOV ECX, _Res__Y
+            MOV EDX, _Res__X
+            MOV EDX, DWORD PTR DS : [6645C4]
+            MOV EAX, DWORD PTR DS : [EDX + 24]
+            MOV EAX, DWORD PTR DS : [EAX + 8F4]
+            CMP EAX, 320*/
+
+            //MOV ECX, _u_Cord_X
+            //MOV EDX, _u_Cord_Y
+            //MOV u_screenSaveEDX, EDX
+            //MOV EDX, DWORD PTR DS : [6645C4h]
+            //MOV EAX, DWORD PTR DS : [EDX + 24h]
+            //MOV EDX, _u_Cord_X
+            //MOV  DWORD PTR DS : [EAX + 8F4h] , EDX
+            //MOV EAX, _u_Cord_Y
+            //MOV  DWORD PTR DS : [EAX + 8F8h] , EDX
+
+
+        MOV EAX, DWORD PTR DS : [EBX + 24h]
+        MOV ECX, _Res__X
+        MOV DWORD PTR DS : [EAX + 8F4h] , ECX // 320h
+        MOV ECX, DWORD PTR DS : [EBX + 24h]
+        MOV _getscreenEax, EAX
+        MOV EAX, _Res__Y
+        MOV DWORD PTR DS : [ECX + 8FCh] , EAX//258
+        MOV  _Res__Y, EAX
+        JMP _0041BD2B
+
+
+
+    }
+}
+ 
+//void stretch( char*data, int size)
+//{
+//    SLP slp;
+//    slp.load((unsigned char*)data, size);
+// 
+//    slp.stretch(u_Cord_X, u_Cord_Y, id);
+//}
+//004D4FE8  |>-E9 631E8F73    ||JMP efpatch.73DC6E50
+
+void __declspec(naked)  hookwide()
+{
+    __asm {
+        MOV EAX, DWORD PTR DS : [ECX + 50h]
+        ADD EAX, ECX
+        CMP ESI, EAX
+        JE short _73DC6E6A//efpatch.73DC6E6A
+        MOV EAX, DWORD PTR SS : [ESP + 10h]
+        MOV EDX, DWORD PTR DS : [ESI]
+        CMP EDX, EAX
+        JNZ short _73DC6E6A//efpatch.73DC6E6A
+        MOV EDX, 4D5020h
+        JMP EDX
+        _73DC6E6A:
+        MOV EDX, 4D4FF2h
+        JMP EDX
+    }
+}
+
 void wideScreenHook()
 {
+    //004D4FE8 | > -E9 631E8F73 || JMP efpatch.73DC6E50
+    InjectHook((void*)0x04F66FA, hookwide, PATCH_JUMP);
+
+
+    //004F66EE  |.^75 E5          \JNZ SHORT battlegr.004F66D5
+    InjectHook((void*)0x04F66FA , u_AddWideScreenPanelreadXY, PATCH_JUMP);
+
+    ////InjectHook(0x0652794 , testFix, PATCH_JUMP);
 	//004F66F0  |. BA 2AD00000    MOV EDX,0D02A
 
 
-	//resize screen by [SWG]_RvA_'s
+	////resize screen by [SWG]_RvA_'s
     //todo change dybnamically x and y
-    patchEXE(GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN));
+    //patchEXE(GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN));
 
     //liste screen controle on game 
     //00459DB0  |. 6A 69          |PUSH 69                                 ; |Arg4 = 00000069
@@ -1515,7 +1080,7 @@ void wideScreenHook()
     Nop(0x045ACFF+1, 1);
     //0045A29F  |. 8B6C24 4C      MOV EBP,DWORD PTR SS:[ESP+4C]
     InjectHook(0x045A29F, addWidescreenControl1, PATCH_JUMP);
-    //0045AC80   > 8B8E 88080000  MOV ECX,DWORD PTR DS:[ESI+888]
+    ////0045AC80   > 8B8E 88080000  MOV ECX,DWORD PTR DS:[ESI+888]
     InjectHook(0x045AC80, addWidescreenControl2, PATCH_JUMP);
 
     //resize slp interface
@@ -1543,12 +1108,24 @@ void wideScreenHook()
     //writeByte(0x51FBC0, 0x7D);
     //Nop(0x051FBC1, 7);
     //no work :(
-    //InjectHook(0x0543238  ,optimize, PATCH_CALL);
-    //InjectHook(0x05433F4  ,optimize, PATCH_CALL);
-    ////InjectHook(0x060EB83  ,optimize, PATCH_CALL);
-    //InjectHook(0x060EBDD  ,optimize, PATCH_CALL);
-    //InjectHook(0x060F3AF  ,optimize, PATCH_CALL);
+    // 00543201  |> 8B15 60FA7700  MOV EDX,DWORD PTR DS:[77FA60]
+ 
+    //InjectHook(0x0500393 , parseSLP, PATCH_CALL);
+    ////InjectHook(0x0543238  ,stretch, PATCH_CALL);
+    ////InjectHook(0x05433F4  ,stretch, PATCH_CALL);
+    ////InjectHook(0x060EB83  ,stretch, PATCH_CALL);
+    ////InjectHook(0x060EBDD  ,stretch, PATCH_CALL);
+    ////InjectHook(0x060F3AF  ,stretch, PATCH_CALL);
+
+    //004FDAF6  |. 7C 27          JL SHORT battlegr.004FDB1F
+
+
 }
+
+
+
+
+
 
 //analyzie
 //00632D34.A9 00800000    TEST EAX, 8000   == 32768 check slp strach function
@@ -1559,4 +1136,6 @@ void wideScreenHook()
 //if (edge[i][j].right == -32768)
 //edge[i][j].right = 0;
 //00651BC0   $ 55             PUSH EBP
+
+
 
